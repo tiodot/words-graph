@@ -1,0 +1,26 @@
+{
+  "prefixes": [
+    {"prefix": "un", "meaning": "不，非", "example": ["unable", "unfair", "unhappy"]},
+    {"prefix": "re", "meaning": "再，重新", "example": ["review", "return", "rewrite"]},
+    {"prefix": "pre", "meaning": "前，预先", "example": ["preview", "predict", "prepare"]},
+    {"prefix": "dis", "meaning": "不，分离", "example": ["disagree", "disappear", "disconnect"]},
+    {"prefix": "in", "meaning": "不，进入", "example": ["incorrect", "include", "inform"]},
+    {"prefix": "im", "meaning": "不，进入", "example": ["impossible", "import", "improve"]},
+    {"prefix": "mis", "meaning": "错误", "example": ["mistake", "misunderstand", "mislead"]},
+    {"prefix": "over", "meaning": "过度，超过", "example": ["overcome", "overlook", "overflow"]},
+    {"prefix": "inter", "meaning": "之间", "example": ["international", "interact", "interview"]},
+    {"prefix": "trans", "meaning": "跨越", "example": ["transfer", "transform", "translate"]}
+  ],
+  "suffixes": [
+    {"suffix": "tion", "meaning": "名词化", "example": ["action", "education", "situation"]},
+    {"suffix": "sion", "meaning": "名词化", "example": ["decision", "version", "explosion"]},
+    {"suffix": "ment", "meaning": "名词化", "example": ["movement", "agreement", "development"]},
+    {"suffix": "ness", "meaning": "名词化", "example": ["happiness", "kindness", "weakness"]},
+    {"suffix": "able", "meaning": "能够", "example": ["readable", "comfortable", "available"]},
+    {"suffix": "ful", "meaning": "充满", "example": ["beautiful", "helpful", "wonderful"]},
+    {"suffix": "less", "meaning": "没有", "example": ["helpless", "careless", "homeless"]},
+    {"suffix": "ous", "meaning": "充满", "example": ["dangerous", "famous", "nervous"]},
+    {"suffix": "ive", "meaning": "有倾向", "example": ["active", "creative", "positive"]},
+    {"suffix": "ly", "meaning": "副词化", "example": ["quickly", "happily", "easily"]}
+  ]
+}
