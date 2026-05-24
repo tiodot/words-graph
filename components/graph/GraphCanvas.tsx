@@ -85,6 +85,8 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       .linkDirectionalParticles(0)
       .backgroundColor("#0f0f0f")
       .onNodeClick((node: NodeObject) => {
+        console.log("Node clicked:", node);
+        console.log("Node id:", node.id);
         onNodeClick(String(node.id));
       });
 
