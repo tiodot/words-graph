@@ -62,7 +62,7 @@ function GraphContent() {
     setSelectedNode(nodeId);
   }, []);
 
-  if (!wordbookId) {
+  if (!wordbook) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-56px)]">
         <p className="text-gray-500">请先选择一本单词书</p>

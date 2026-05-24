@@ -112,11 +112,13 @@ async function processWordbook(
   // 3. Affix edges
   console.log("  匹配词缀...");
   for (let i = 0; i < wordList.length; i++) {
-    const affixes = findAffixMatches(wordList[i]);
-    for (const affix of affixes) {
-      const j = wordList.indexOf(affix);
-      if (j >= 0 && j !== i) {
-        addEdge(i, j, "affix", COLORS.affix);
+    const affixMatches = findAffixMatches(wordList[i]);
+    for (const match of affixMatches) {
+      for (const relatedWord of match.words) {
+        const j = wordList.indexOf(relatedWord);
+        if (j >= 0 && j !== i) {
+          addEdge(i, j, "affix", COLORS.affix);
+        }
       }
     }
   }
