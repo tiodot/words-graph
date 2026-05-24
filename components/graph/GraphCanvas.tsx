@@ -97,7 +97,15 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
         onNodeClick(hoveredRef.current);
       }
     };
+    const handleDblClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (hoveredRef.current !== null) {
+        onNodeClick(hoveredRef.current);
+      }
+    };
     containerRef.current.addEventListener("click", handleClick, { capture: true });
+    containerRef.current.addEventListener("dblclick", handleDblClick, { capture: true });
 
     setTimeout(() => applyLayout(graph), 100);
 
@@ -105,6 +113,7 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
 
     return () => {
       containerRef.current?.removeEventListener("click", handleClick);
+      containerRef.current?.removeEventListener("dblclick", handleDblClick);
       graph._destructor();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
