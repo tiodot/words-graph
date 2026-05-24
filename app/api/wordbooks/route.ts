@@ -11,8 +11,11 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
-    data: wordbooks.map((wb) => ({
-      ...wb,
+    data: wordbooks.map((wb: { id: number; name: string; source: string; createdAt: Date; _count: { words: number } }) => ({
+      id: wb.id,
+      name: wb.name,
+      source: wb.source,
+      createdAt: wb.createdAt,
       wordCount: wb._count.words,
     })),
   });
