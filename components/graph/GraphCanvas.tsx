@@ -99,12 +99,14 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       .onNodeClick((node: NodeObject) => {
         onNodeClick(String(node.id));
       })
+      .nodeThreeObjectExtend(true)
       .nodeThreeObject((node: NodeObject) => {
         const n = node as NodeObject & { label: string; color: string };
         const sprite = new THREE.Sprite(
           new THREE.SpriteMaterial({
             map: createTextTexture(n.label, n.color),
             depthTest: false,
+            transparent: true,
           })
         );
         sprite.scale.set(8, 4, 1);
