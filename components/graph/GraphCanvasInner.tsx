@@ -19,7 +19,7 @@ function computePositions(nodes: { id: string }[], edges: { source: string; targ
   const n = nodes.length;
   if (n === 0) return map;
 
-  if (layout === "spherical") {
+  if (layout === "spherical" || n > 500) {
     const radius = Math.max(30, Math.sqrt(n) * 5);
     nodes.forEach((node, i) => {
       const phi = Math.acos(-1 + (2 * i) / n);
@@ -39,6 +39,7 @@ function computePositions(nodes: { id: string }[], edges: { source: string; targ
       ]);
     });
   } else {
+    // Force-directed (only for small datasets)
     nodes.forEach((node, i) => {
       const angle = (2 * Math.PI * i) / n;
       const r = 20 + Math.random() * 30;
@@ -49,7 +50,8 @@ function computePositions(nodes: { id: string }[], edges: { source: string; targ
       ]);
     });
 
-    for (let iter = 0; iter < 80; iter++) {
+    const iters = Math.min(50, Math.max(10, Math.floor(2000 / n)));
+    for (let iter = 0; iter < iters; iter++) {
       const forces = new Map<string, [number, number, number]>();
       nodes.forEach((n) => forces.set(n.id, [0, 0, 0]));
 
@@ -109,92 +111,128 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
+    const nodeCount = data.nodes.length;
 
-    // Setup scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f0f0f);
 
     const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 2000);
-    camera.position.set(0, 0, 80);
+    camera.position.set(0, 0, 120);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 1.0;
+    controls.minDistance = 10;
+    controls.maxDistance = 500;
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const pointLight = new THREE.PointLight(0xffffff, 1);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const pointLight = new THREE.PointLight(0xffffff, 0.8);
     pointLight.position.set(100, 100, 100);
     scene.add(pointLight);
 
-    // Node meshes
-    const nodeGroup = new THREE.Group();
-    const nodeMap = new Map<THREE.Mesh, string>();
-    const sphereGeo = new THREE.SphereGeometry(0.8, 16, 16);
+    // Use instanced mesh for nodes (much faster)
+    const sphereGeo = new THREE.SphereGeometry(0.8, 12, 12);
+    const nodeMat = new THREE.MeshStandardMaterial({ color: 0x4f8cff });
+    const instancedMesh = new THREE.InstancedMesh(sphereGeo, nodeMat, nodeCount);
+    const dummy = new THREE.Object3D();
+    const colorArray = new Float32Array(nodeCount * 3);
+    const tempColor = new THREE.Color();
 
-    for (const node of data.nodes) {
+    data.nodes.forEach((node, i) => {
       const pos = positions.get(node.id);
-      if (!pos) continue;
-
-      const mat = new THREE.MeshStandardMaterial({ color: node.color });
-      const mesh = new THREE.Mesh(sphereGeo, mat);
-      mesh.position.set(pos[0], pos[1], pos[2]);
-      mesh.userData = { id: node.id, label: node.label };
-      nodeGroup.add(mesh);
-      nodeMap.set(mesh, node.id);
-    }
-    scene.add(nodeGroup);
+      if (!pos) return;
+      dummy.position.set(pos[0], pos[1], pos[2]);
+      dummy.updateMatrix();
+      instancedMesh.setMatrixAt(i, dummy.matrix);
+      tempColor.set(node.color);
+      colorArray[i * 3] = tempColor.r;
+      colorArray[i * 3 + 1] = tempColor.g;
+      colorArray[i * 3 + 2] = tempColor.b;
+    });
+    instancedMesh.instanceMatrix.needsUpdate = true;
+    instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(colorArray, 3);
+    scene.add(instancedMesh);
 
     // Edge lines
-    const edgePoints: number[] = [];
-    for (const edge of filteredEdges) {
-      const a = positions.get(edge.source);
-      const b = positions.get(edge.target);
-      if (a && b) {
-        edgePoints.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+    if (filteredEdges.length > 0) {
+      const edgePoints: number[] = [];
+      for (const edge of filteredEdges) {
+        const a = positions.get(edge.source);
+        const b = positions.get(edge.target);
+        if (a && b) {
+          edgePoints.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+        }
+      }
+      if (edgePoints.length > 0) {
+        const edgeGeo = new THREE.BufferGeometry();
+        edgeGeo.setAttribute("position", new THREE.Float32BufferAttribute(edgePoints, 3));
+        scene.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.4 })));
       }
     }
-    if (edgePoints.length > 0) {
-      const edgeGeo = new THREE.BufferGeometry();
-      edgeGeo.setAttribute("position", new THREE.Float32BufferAttribute(edgePoints, 3));
-      const edgeMat = new THREE.LineBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.6 });
-      scene.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+    // Labels: only show for nearby nodes using a single canvas
+    const labelCanvas = document.createElement("canvas");
+    const labelCtx = labelCanvas.getContext("2d")!;
+    labelCanvas.width = 1024;
+    labelCanvas.height = 1024;
+    const labelTexture = new THREE.CanvasTexture(labelCanvas);
+    const labelMat = new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false });
+    const labelSprite = new THREE.Sprite(labelMat);
+    labelSprite.scale.set(200, 200, 1);
+    labelSprite.position.set(0, 0, 0);
+    scene.add(labelSprite);
+
+    function updateLabels() {
+      labelCtx.clearRect(0, 0, 1024, 1024);
+      const camPos = camera.position;
+
+      // Find nodes closest to camera and draw their labels
+      const sorted = data.nodes
+        .map((node) => {
+          const pos = positions.get(node.id);
+          if (!pos) return null;
+          const dx = pos[0] - camPos.x;
+          const dy = pos[1] - camPos.y;
+          const dz = pos[2] - camPos.z;
+          return { node, pos, dist: Math.sqrt(dx * dx + dy * dy + dz * dz) };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a!.dist - b!.dist)
+        .slice(0, 50); // Only show 50 closest labels
+
+      labelCtx.font = "bold 24px Arial";
+      labelCtx.textAlign = "center";
+      labelCtx.textBaseline = "middle";
+
+      for (const item of sorted) {
+        if (!item) continue;
+        // Project 3D to 2D screen space
+        const vec = new THREE.Vector3(item.pos[0], item.pos[1] + 2, item.pos[2]);
+        vec.project(camera);
+
+        const x = (vec.x * 0.5 + 0.5) * 1024;
+        const y = (-vec.y * 0.5 + 0.5) * 1024;
+
+        if (x < 0 || x > 1024 || y < 0 || y > 1024) continue;
+
+        labelCtx.strokeStyle = "#000000";
+        labelCtx.lineWidth = 3;
+        labelCtx.strokeText(item.node.label, x, y);
+        labelCtx.fillStyle = "#ffffff";
+        labelCtx.fillText(item.node.label, x, y);
+      }
+
+      labelTexture.needsUpdate = true;
     }
 
-    // Text labels using sprites
-    const labelGroup = new THREE.Group();
-    for (const node of data.nodes) {
-      const pos = positions.get(node.id);
-      if (!pos) continue;
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      canvas.width = 256;
-      canvas.height = 64;
-      ctx.font = "bold 32px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#ffffff";
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 4;
-      ctx.strokeText(node.label, 128, 32);
-      ctx.fillText(node.label, 128, 32);
-
-      const texture = new THREE.CanvasTexture(canvas);
-      const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
-      const sprite = new THREE.Sprite(spriteMat);
-      sprite.position.set(pos[0], pos[1] + 2, pos[2]);
-      sprite.scale.set(8, 2, 1);
-      labelGroup.add(sprite);
-    }
-    scene.add(labelGroup);
-
-    // Raycaster for click detection
+    // Raycaster
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let mouseDown = { x: 0, y: 0 };
@@ -206,69 +244,48 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
     const handleClick = (e: MouseEvent) => {
       const dx = e.clientX - mouseDown.x;
       const dy = e.clientY - mouseDown.y;
-      if (Math.sqrt(dx * dx + dy * dy) > 5) return; // Was a drag
+      if (Math.sqrt(dx * dx + dy * dy) > 5) return;
 
       const rect = container.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(nodeGroup.children);
+      const intersects = raycaster.intersectObject(instancedMesh);
       if (intersects.length > 0) {
-        const mesh = intersects[0].object as THREE.Mesh;
-        const id = mesh.userData.id;
-        if (id) onNodeClick(id);
+        const idx = intersects[0].instanceId;
+        if (idx !== undefined && idx < data.nodes.length) {
+          onNodeClick(data.nodes[idx].id);
+        }
       }
     };
 
     const handleDblClick = (e: MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
     };
 
     container.addEventListener("mousedown", handleMouseDown);
     container.addEventListener("click", handleClick);
     container.addEventListener("dblclick", handleDblClick, { capture: true });
 
-    // Hover effect
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(nodeGroup.children);
-
-      nodeGroup.children.forEach((child) => {
-        const mesh = child as THREE.Mesh;
-        (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
-        (mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0;
-        mesh.scale.set(1, 1, 1);
-      });
-
-      if (intersects.length > 0) {
-        const mesh = intersects[0].object as THREE.Mesh;
-        (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
-          (mesh.material as THREE.MeshStandardMaterial).color.getHex()
-        );
-        (mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.5;
-        mesh.scale.set(1.3, 1.3, 1.3);
-        container.style.cursor = "pointer";
-      } else {
-        container.style.cursor = "default";
-      }
-    };
-    container.addEventListener("mousemove", handleMouseMove);
-
     // Animation loop
     let animId: number;
+    let frameCount = 0;
     const animate = () => {
       animId = requestAnimationFrame(animate);
       controls.update();
+
+      // Update labels every 10 frames
+      frameCount++;
+      if (frameCount % 10 === 0) {
+        updateLabels();
+      }
+
       renderer.render(scene, camera);
     };
     animate();
 
-    // Resize handler
     const handleResize = () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
@@ -281,7 +298,6 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
       container.removeEventListener("mousedown", handleMouseDown);
       container.removeEventListener("click", handleClick);
       container.removeEventListener("dblclick", handleDblClick);
-      container.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("resize", handleResize);
       controls.dispose();
       renderer.dispose();
