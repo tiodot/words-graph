@@ -159,7 +159,7 @@ export async function getGraphData(
     label: w.word,
     definition: w.definition ?? undefined,
     phonetic: w.phonetic ?? undefined,
-    tags: w.tags as any,
+    tags: w.tags as { mastered?: boolean; starred?: boolean } | undefined,
     size: 10,
     color: "#4f8cff",
   }));

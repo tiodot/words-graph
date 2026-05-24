@@ -67,7 +67,7 @@ export async function analyzeWordRelations(
     if (!jsonMatch) throw new Error("No JSON found in response");
     const result: LLMResponse = JSON.parse(jsonMatch[0]);
     return result.edges;
-  } catch (error) {
+  } catch {
     console.error("Failed to parse LLM response:", text);
     throw new Error("Failed to parse LLM response");
   }

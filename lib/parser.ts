@@ -77,11 +77,11 @@ function parseMoomooCsv(content: string): ParseResult {
 
 function parseBubeiJson(content: string): ParseResult {
   try {
-    const items = JSON.parse(content);
-    const words: ParsedWord[] = items.map((item: any) => ({
-      word: item.word,
-      definition: item.meaning || item.definition,
-      phonetic: item.phonetic,
+    const items = JSON.parse(content) as Record<string, unknown>[];
+    const words: ParsedWord[] = items.map((item) => ({
+      word: String(item.word || ""),
+      definition: String(item.meaning || item.definition || ""),
+      phonetic: item.phonetic ? String(item.phonetic) : undefined,
     }));
     return { name: "bubei", words };
   } catch {
@@ -112,11 +112,11 @@ function parseGenericCsv(content: string, mapping?: CsvMapping): ParseResult {
 
 function parseGenericJson(content: string): ParseResult {
   try {
-    const items = JSON.parse(content);
-    const words: ParsedWord[] = items.map((item: any) => ({
-      word: item.word || item.term,
-      definition: item.definition || item.meaning || item.def,
-      phonetic: item.phonetic || item.pronunciation,
+    const items = JSON.parse(content) as Record<string, unknown>[];
+    const words: ParsedWord[] = items.map((item) => ({
+      word: String(item.word || item.term || ""),
+      definition: String(item.definition || item.meaning || item.def || ""),
+      phonetic: item.phonetic || item.pronunciation ? String(item.phonetic || item.pronunciation) : undefined,
     }));
     return { name: "json", words };
   } catch {

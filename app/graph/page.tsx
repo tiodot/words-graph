@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { GraphCanvas } from "@/components/graph/GraphCanvas";
 import { GraphFilters } from "@/components/graph/GraphFilters";
@@ -8,6 +8,14 @@ import { WordDetail } from "@/components/graph/WordDetail";
 import { GraphData, EdgeType } from "@/lib/types";
 
 export default function GraphPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-56px)]"><p className="text-gray-500">加载中...</p></div>}>
+      <GraphContent />
+    </Suspense>
+  );
+}
+
+function GraphContent() {
   const searchParams = useSearchParams();
   const wordbookId = searchParams.get("wordbook");
 
@@ -18,13 +26,7 @@ export default function GraphPage() {
   ]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    if (wordbookId) {
-      fetchGraphData();
-    }
-  }, [wordbookId, activeTypes]);
-
-  async function fetchGraphData() {
+  const fetchGraphData = useCallback(async () => {
     const typesParam = activeTypes.join(",");
     const res = await fetch(
       `/api/graph?wordbook_id=${wordbookId}&types=${typesParam}`
@@ -33,7 +35,13 @@ export default function GraphPage() {
     if (result.success) {
       setData(result.data);
     }
-  }
+  }, [wordbookId, activeTypes]);
+
+  useEffect(() => {
+    if (wordbookId) {
+      fetchGraphData();
+    }
+  }, [wordbookId, activeTypes, fetchGraphData]);
 
   const handleToggleType = useCallback((type: EdgeType) => {
     setActiveTypes((prev) =>

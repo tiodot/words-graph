@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Graph from "graphology";
 import Sigma from "sigma";
-import { EdgeType, EDGE_COLORS, GraphData } from "@/lib/types";
+import { EdgeType, GraphData } from "@/lib/types";
 
 interface GraphCanvasProps {
   data: GraphData;
