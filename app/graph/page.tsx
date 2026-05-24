@@ -9,7 +9,7 @@ import { GraphData, EdgeType } from "@/lib/types";
 
 const LAYOUT_OPTIONS: { value: LayoutType; label: string }[] = [
   { value: "force", label: "力导向" },
-  { value: "circular", label: "环形" },
+  { value: "spherical", label: "球形" },
   { value: "random", label: "随机" },
 ];
 

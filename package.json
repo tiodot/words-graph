@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "3d-force-graph": "^1.80.0",
     "clsx": "^2.1.1",
     "graphology": "^0.26.0",
     "graphology-layout": "^0.6.1",
@@ -19,7 +20,8 @@
     "react": "^18",
     "react-dom": "^18",
     "sigma": "^3.0.3",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.79",
@@ -28,6 +30,7 @@
     "@types/node": "^20.19.41",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/three": "^0.184.1",
     "@vitejs/plugin-react": "^6.0.2",
     "ai": "^6.0.191",
     "eslint": "^8",
