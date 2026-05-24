@@ -18,7 +18,7 @@ export function GraphCanvas({ data, onNodeClick, activeTypes }: GraphCanvasProps
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const graph = new Graph();
+    const graph = new Graph({ multi: true });
 
     // Add nodes
     data.nodes.forEach((node) => {
@@ -36,7 +36,7 @@ export function GraphCanvas({ data, onNodeClick, activeTypes }: GraphCanvasProps
       .filter((edge) => activeTypes.includes(edge.type))
       .forEach((edge) => {
         if (graph.hasNode(edge.source) && graph.hasNode(edge.target)) {
-          graph.addEdge(edge.source, edge.target, {
+          graph.addEdgeWithKey(edge.id, edge.source, edge.target, {
             color: edge.color,
             size: edge.size,
           });
