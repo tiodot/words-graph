@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import ForceGraph3D, { type NodeObject, type LinkObject } from "3d-force-graph";
-import * as THREE from "three";
+import ForceGraph3D, { type NodeObject, type LinkObject, type ForceGraph3DInstance } from "3d-force-graph";
 import { EdgeType, GraphData } from "@/lib/types";
 
 export type LayoutType = "force" | "spherical" | "random";
@@ -14,31 +13,15 @@ interface GraphCanvasProps {
   layout: LayoutType;
 }
 
-interface ForceGraphNode {
-  id: string;
-  label: string;
-  color: string;
-  size: number;
-  x?: number;
-  y?: number;
-  z?: number;
-}
-
 interface ForceGraphLink {
   source: string;
   target: string;
   color: string;
 }
 
-interface ForceGraphInstance {
-  graphData(): { nodes: ForceGraphNode[]; links: ForceGraphLink[] };
-  refresh(): void;
-  _destructor?: () => void;
-}
-
 export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<ForceGraphInstance | null>(null);
+  const graphRef = useRef<ForceGraph3DInstance | null>(null);
 
   const filteredEdges = data.edges.filter((e) => activeTypes.includes(e.type));
 
@@ -52,7 +35,7 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
   };
 
   const applyLayout = useCallback(
-    (graph: ForceGraphInstance) => {
+    (graph: ForceGraph3DInstance) => {
       if (layout === "spherical") {
         const n = data.nodes.length;
         const radius = Math.max(50, Math.sqrt(n) * 8);
@@ -89,7 +72,12 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
 
     const graph = new ForceGraph3D(containerRef.current)
       .graphData(graphData)
-      .nodeLabel("label")
+      .nodeLabel((node: NodeObject) => {
+        const n = node as NodeObject & { label: string; definition?: string };
+        return `<div style="background:#1a1a1a;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;">
+          <strong>${n.label}</strong>${n.definition ? `<br/>${n.definition}` : ""}
+        </div>`;
+      })
       .nodeColor("color")
       .nodeVal("size")
       .linkColor((l: LinkObject) => (l as ForceGraphLink).color)
@@ -98,27 +86,14 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       .backgroundColor("#0f0f0f")
       .onNodeClick((node: NodeObject) => {
         onNodeClick(String(node.id));
-      })
-      .nodeThreeObjectExtend(true)
-      .nodeThreeObject((node: NodeObject) => {
-        const n = node as NodeObject & { label: string; color: string };
-        const sprite = new THREE.Sprite(
-          new THREE.SpriteMaterial({
-            map: createTextTexture(n.label, n.color),
-            depthTest: false,
-            transparent: true,
-          })
-        );
-        sprite.scale.set(8, 4, 1);
-        return sprite;
       });
 
-    setTimeout(() => applyLayout(graph as unknown as ForceGraphInstance), 100);
+    setTimeout(() => applyLayout(graph), 100);
 
-    graphRef.current = graph as unknown as ForceGraphInstance;
+    graphRef.current = graph;
 
     return () => {
-      (graph as unknown as ForceGraphInstance)._destructor?.();
+      graph._destructor();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, activeTypes]);
@@ -130,24 +105,4 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
   }, [layout, applyLayout]);
 
   return <div ref={containerRef} className="w-full h-full" />;
-}
-
-function createTextTexture(text: string, color: string) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
-  canvas.width = 256;
-  canvas.height = 128;
-
-  ctx.fillStyle = "transparent";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.font = "bold 48px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = color;
-  ctx.fillText(text, 128, 64);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
 }
