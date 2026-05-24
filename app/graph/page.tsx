@@ -23,9 +23,9 @@ export default function GraphPage() {
 
 function GraphContent() {
   const searchParams = useSearchParams();
-  const wordbookId = searchParams.get("wordbook");
+  const wordbook = searchParams.get("wordbook");
 
-  const [data, setData] = useState<GraphData | null>(null);
+  const [fullData, setFullData] = useState<GraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [activeTypes, setActiveTypes] = useState<EdgeType[]>([
     "semantic", "location", "scene", "similar", "root", "affix",
@@ -33,22 +33,22 @@ function GraphContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [layout, setLayout] = useState<LayoutType>("force");
 
-  const fetchGraphData = useCallback(async () => {
-    const typesParam = activeTypes.join(",");
-    const res = await fetch(
-      `/api/graph?wordbook_id=${wordbookId}&types=${typesParam}`
-    );
-    const result = await res.json();
-    if (result.success) {
-      setData(result.data);
-    }
-  }, [wordbookId, activeTypes]);
-
   useEffect(() => {
-    if (wordbookId) {
-      fetchGraphData();
+    if (wordbook) {
+      fetch(`/graphs/${wordbook}.json`)
+        .then((res) => res.json())
+        .then((graph) => setFullData(graph))
+        .catch(() => setFullData(null));
     }
-  }, [wordbookId, activeTypes, fetchGraphData]);
+  }, [wordbook]);
+
+  // Filter edges by active types
+  const data: GraphData | null = fullData
+    ? {
+        nodes: fullData.nodes,
+        edges: fullData.edges.filter((e) => activeTypes.includes(e.type)),
+      }
+    : null;
 
   const handleToggleType = useCallback((type: EdgeType) => {
     setActiveTypes((prev) =>

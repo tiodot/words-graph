@@ -1,8 +1,6 @@
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { prisma } from "./db";
-import { decrypt } from "./crypto";
 import type { EdgeType } from "./types";
 
 interface LLMEdge {
@@ -16,27 +14,39 @@ interface LLMResponse {
   edges: LLMEdge[];
 }
 
-function getProvider(provider: string, apiKey: string, model: string) {
-  switch (provider) {
+interface LLMConfig {
+  provider: string;
+  apiKey: string;
+  model: string;
+}
+
+function getProvider(config: LLMConfig) {
+  switch (config.provider) {
     case "openai":
-      return createOpenAI({ apiKey })(model);
+      return createOpenAI({ apiKey: config.apiKey })(config.model);
     case "anthropic":
-      return createAnthropic({ apiKey })(model);
+      return createAnthropic({ apiKey: config.apiKey })(config.model);
     default:
-      return createOpenAI({ apiKey, baseURL: provider })(model);
+      return createOpenAI({ apiKey: config.apiKey, baseURL: config.provider })(config.model);
   }
 }
 
-export async function analyzeWordRelations(
-  words: string[]
-): Promise<LLMEdge[]> {
-  const settings = await prisma.userSettings.findFirst();
-  if (!settings?.apiKey || !settings?.provider || !settings?.model) {
-    throw new Error("LLM settings not configured");
-  }
+function getLLMConfig(): LLMConfig {
+  const provider = process.env.LLM_PROVIDER || "openai";
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || "";
+  const model = process.env.LLM_MODEL || (provider === "anthropic" ? "claude-sonnet-4-20250514" : "gpt-4o");
 
-  const apiKey = decrypt(settings.apiKey);
-  const provider = getProvider(settings.provider, apiKey, settings.model);
+  if (!apiKey) throw new Error("LLM API key not set. Use LLM_API_KEY env var.");
+
+  return { provider, apiKey, model };
+}
+
+export async function analyzeWordRelations(
+  words: string[],
+  config?: LLMConfig
+): Promise<LLMEdge[]> {
+  const llmConfig = config || getLLMConfig();
+  const provider = getProvider(llmConfig);
 
   const prompt = `分析以下单词之间的关联关系，返回 JSON 格式：
 
@@ -75,14 +85,15 @@ export async function analyzeWordRelations(
 
 export async function batchAnalyzeWords(
   words: string[],
-  batchSize: number = 30
+  batchSize: number = 30,
+  config?: LLMConfig
 ): Promise<LLMEdge[]> {
   const allEdges: LLMEdge[] = [];
 
   for (let i = 0; i < words.length; i += batchSize) {
     const batch = words.slice(i, i + batchSize);
     try {
-      const edges = await analyzeWordRelations(batch);
+      const edges = await analyzeWordRelations(batch, config);
       allEdges.push(...edges);
     } catch (error) {
       console.error(`Batch ${i}-${i + batchSize} failed:`, error);
