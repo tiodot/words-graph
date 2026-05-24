@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import ForceGraph3D, { type NodeObject, type LinkObject, type ForceGraph3DInstance } from "3d-force-graph";
+import * as THREE from "three";
 import { EdgeType, GraphData } from "@/lib/types";
 
 export type LayoutType = "force" | "spherical" | "random";
@@ -22,7 +23,7 @@ interface ForceGraphLink {
 export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<ForceGraph3DInstance | null>(null);
-  const hoveredRef = useRef<string | null>(null);
+  const mouseRef = useRef({ x: 0, y: 0 });
 
   const filteredEdges = data.edges.filter((e) => activeTypes.includes(e.type));
 
@@ -70,8 +71,9 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const container = containerRef.current;
 
-    const graph = new ForceGraph3D(containerRef.current)
+    const graph = new ForceGraph3D(container)
       .graphData(graphData)
       .nodeLabel((node: NodeObject) => {
         const n = node as NodeObject & { label: string; definition?: string };
@@ -84,36 +86,71 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       .linkColor((l: LinkObject) => (l as ForceGraphLink).color)
       .linkWidth(0.5)
       .linkDirectionalParticles(0)
-      .backgroundColor("#0f0f0f")
-      .onNodeHover((node: NodeObject | null) => {
-        hoveredRef.current = node ? String(node.id) : null;
-      });
+      .backgroundColor("#0f0f0f");
 
-    // Handle click manually: if a node is hovered, select it
+    // Track mouse position for click detection
+    const handleMouseDown = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    // Custom click handler using raycasting
     const handleClick = (e: MouseEvent) => {
-      if (hoveredRef.current !== null) {
-        e.preventDefault();
-        e.stopPropagation();
-        onNodeClick(hoveredRef.current);
+      // Only handle if mouse didn't move much (not a drag)
+      const dx = e.clientX - mouseRef.current.x;
+      const dy = e.clientY - mouseRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+
+      // Get graph's camera and scene
+      const camera = graph.camera();
+      const scene = graph.scene();
+
+      // Calculate mouse position in normalized device coordinates
+      const rect = container.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      // Raycast
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      // Find the closest node
+      for (const intersect of intersects) {
+        let obj: THREE.Object3D | null = intersect.object;
+        while (obj) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const data = (obj as any).__data;
+          if (data && data.id !== undefined) {
+            e.preventDefault();
+            e.stopPropagation();
+            onNodeClick(String(data.id));
+            return;
+          }
+          obj = obj.parent;
+        }
       }
     };
+
+    container.addEventListener("mousedown", handleMouseDown);
+    container.addEventListener("click", handleClick, { capture: true });
+
+    // Prevent double-click from causing page refresh
     const handleDblClick = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (hoveredRef.current !== null) {
-        onNodeClick(hoveredRef.current);
-      }
     };
-    containerRef.current.addEventListener("click", handleClick, { capture: true });
-    containerRef.current.addEventListener("dblclick", handleDblClick, { capture: true });
+    container.addEventListener("dblclick", handleDblClick, { capture: true });
 
     setTimeout(() => applyLayout(graph), 100);
 
     graphRef.current = graph;
 
     return () => {
-      containerRef.current?.removeEventListener("click", handleClick);
-      containerRef.current?.removeEventListener("dblclick", handleDblClick);
+      container.removeEventListener("mousedown", handleMouseDown);
+      container.removeEventListener("click", handleClick);
+      container.removeEventListener("dblclick", handleDblClick);
       graph._destructor();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
