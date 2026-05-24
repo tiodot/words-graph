@@ -90,12 +90,14 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       });
 
     // Handle click manually: if a node is hovered, select it
-    const handleClick = () => {
+    const handleClick = (e: MouseEvent) => {
       if (hoveredRef.current !== null) {
+        e.preventDefault();
+        e.stopPropagation();
         onNodeClick(hoveredRef.current);
       }
     };
-    containerRef.current.addEventListener("click", handleClick);
+    containerRef.current.addEventListener("click", handleClick, { capture: true });
 
     setTimeout(() => applyLayout(graph), 100);
 
