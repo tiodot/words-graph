@@ -2,10 +2,16 @@
 
 import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { GraphCanvas } from "@/components/graph/GraphCanvas";
+import { GraphCanvas, LayoutType } from "@/components/graph/GraphCanvas";
 import { GraphFilters } from "@/components/graph/GraphFilters";
 import { WordDetail } from "@/components/graph/WordDetail";
 import { GraphData, EdgeType } from "@/lib/types";
+
+const LAYOUT_OPTIONS: { value: LayoutType; label: string }[] = [
+  { value: "force", label: "力导向" },
+  { value: "circular", label: "环形" },
+  { value: "random", label: "随机" },
+];
 
 export default function GraphPage() {
   return (
@@ -25,6 +31,7 @@ function GraphContent() {
     "semantic", "location", "scene", "similar", "root", "affix",
   ]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [layout, setLayout] = useState<LayoutType>("force");
 
   const fetchGraphData = useCallback(async () => {
     const typesParam = activeTypes.join(",");
@@ -76,6 +83,25 @@ function GraphContent() {
       {/* Sidebar */}
       <div className="w-64 bg-[#1a1a1a] border-r border-[#2a2a2a] p-4 flex flex-col gap-4">
         <div>
+          <h3 className="text-sm font-semibold mb-2">布局方式</h3>
+          <div className="flex gap-2">
+            {LAYOUT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setLayout(opt.value)}
+                className={`px-3 py-1 rounded text-xs border transition-colors ${
+                  layout === opt.value
+                    ? "bg-[#4f8cff22] border-[#4f8cff44] text-[#4f8cff]"
+                    : "border-[#3a3a3a] text-gray-400 hover:border-[#4a4a4a]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <h3 className="text-sm font-semibold mb-2">筛选关联</h3>
           <GraphFilters activeTypes={activeTypes} onToggle={handleToggleType} />
         </div>
@@ -98,6 +124,7 @@ function GraphContent() {
           data={data}
           onNodeClick={handleNodeClick}
           activeTypes={activeTypes}
+          layout={layout}
         />
       </div>
 

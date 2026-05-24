@@ -17,6 +17,7 @@
     "ai": "^6.0.191",
     "clsx": "^2.1.1",
     "graphology": "^0.26.0",
+    "graphology-layout": "^0.6.1",
     "graphology-layout-forceatlas2": "^0.10.1",
     "next": "14.2.35",
     "react": "^18",
