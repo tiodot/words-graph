@@ -6,9 +6,10 @@ interface WordDetailProps {
   nodeId: string;
   data: GraphData;
   onClose: () => void;
+  onWordClick: (nodeId: string) => void;
 }
 
-export function WordDetail({ nodeId, data, onClose }: WordDetailProps) {
+export function WordDetail({ nodeId, data, onClose, onWordClick }: WordDetailProps) {
   const node = data.nodes.find((n) => n.id === nodeId);
   if (!node) return null;
 
@@ -20,6 +21,7 @@ export function WordDetail({ nodeId, data, onClose }: WordDetailProps) {
     const otherId = edge.source === nodeId ? edge.target : edge.source;
     const otherNode = data.nodes.find((n) => n.id === otherId);
     return {
+      id: otherId,
       word: otherNode?.label || "",
       type: edge.type as EdgeType,
     };
@@ -53,9 +55,10 @@ export function WordDetail({ nodeId, data, onClose }: WordDetailProps) {
         <p className="text-xs text-gray-500 mb-2">关联单词</p>
         <div className="space-y-2">
           {relatedWords.map((word, i) => (
-            <div
+            <button
               key={i}
-              className="flex justify-between items-center"
+              onClick={() => onWordClick(word.id)}
+              className="flex justify-between items-center w-full hover:bg-[#2a2a2a] rounded px-1 py-0.5 transition-colors text-left"
             >
               <span style={{ color: EDGE_COLORS[word.type] }}>
                 ● {word.word}
@@ -63,7 +66,7 @@ export function WordDetail({ nodeId, data, onClose }: WordDetailProps) {
               <span className="text-xs text-gray-500">
                 {EDGE_TYPE_LABELS[word.type]}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       </div>

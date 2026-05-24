@@ -108,6 +108,7 @@ function GraphContent() {
             nodeId={selectedNode}
             data={data}
             onClose={() => setSelectedNode(null)}
+            onWordClick={handleNodeClick}
           />
         </div>
       )}
