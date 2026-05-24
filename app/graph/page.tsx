@@ -59,7 +59,6 @@ function GraphContent() {
   }, []);
 
   const handleNodeClick = useCallback((nodeId: string) => {
-    console.log("handleNodeClick called with:", nodeId);
     setSelectedNode(nodeId);
   }, []);
 

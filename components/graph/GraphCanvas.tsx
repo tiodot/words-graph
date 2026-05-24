@@ -22,6 +22,7 @@ interface ForceGraphLink {
 export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<ForceGraph3DInstance | null>(null);
+  const hoveredRef = useRef<string | null>(null);
 
   const filteredEdges = data.edges.filter((e) => activeTypes.includes(e.type));
 
@@ -84,17 +85,24 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       .linkWidth(0.5)
       .linkDirectionalParticles(0)
       .backgroundColor("#0f0f0f")
-      .onNodeClick((node: NodeObject) => {
-        console.log("Node clicked:", node);
-        console.log("Node id:", node.id);
-        onNodeClick(String(node.id));
+      .onNodeHover((node: NodeObject | null) => {
+        hoveredRef.current = node ? String(node.id) : null;
       });
+
+    // Handle click manually: if a node is hovered, select it
+    const handleClick = () => {
+      if (hoveredRef.current !== null) {
+        onNodeClick(hoveredRef.current);
+      }
+    };
+    containerRef.current.addEventListener("click", handleClick);
 
     setTimeout(() => applyLayout(graph), 100);
 
     graphRef.current = graph;
 
     return () => {
+      containerRef.current?.removeEventListener("click", handleClick);
       graph._destructor();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
