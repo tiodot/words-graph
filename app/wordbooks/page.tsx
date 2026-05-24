@@ -28,7 +28,7 @@ export default function WordbooksPage() {
           .then((res) => (res.ok ? wb.name : null))
           .catch(() => null)
       )
-    ).then((results) => {
+    ).then((results: (string | null)[]) => {
       setAvailable(new Set(results.filter(Boolean) as string[]));
     });
   }, []);
