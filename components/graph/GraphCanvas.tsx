@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import ForceGraph3D, { type NodeObject, type LinkObject } from "3d-force-graph";
+import * as THREE from "three";
 import { EdgeType, GraphData } from "@/lib/types";
 
 export type LayoutType = "force" | "spherical" | "random";
@@ -100,7 +101,6 @@ export function GraphCanvas({ data, onNodeClick, activeTypes, layout }: GraphCan
       })
       .nodeThreeObject((node: NodeObject) => {
         const n = node as NodeObject & { label: string; color: string };
-        const THREE = (window as unknown as { THREE: typeof import("three") }).THREE;
         const sprite = new THREE.Sprite(
           new THREE.SpriteMaterial({
             map: createTextTexture(n.label, n.color),
@@ -145,7 +145,6 @@ function createTextTexture(text: string, color: string) {
   ctx.fillStyle = color;
   ctx.fillText(text, 128, 64);
 
-  const THREE = (window as unknown as { THREE: typeof import("three") }).THREE;
   const texture = new THREE.CanvasTexture(canvas);
   texture.needsUpdate = true;
   return texture;
