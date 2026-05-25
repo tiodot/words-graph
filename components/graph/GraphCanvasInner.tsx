@@ -308,7 +308,7 @@ export default function GraphCanvasInner({
 
       if (hoveredMesh) {
         (hoveredMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.15;
-        hoveredMesh.scale.setScalar((hoveredMesh.userData as any)._baseScale || 1);
+        hoveredMesh.scale.setScalar((hoveredMesh.userData as Record<string, number>)._baseScale || 1);
         hoveredMesh = null;
       }
 
@@ -316,8 +316,8 @@ export default function GraphCanvasInner({
         const mesh = intersects[0].object as THREE.Mesh;
         const mat = mesh.material as THREE.MeshStandardMaterial;
         mat.emissiveIntensity = 0.5;
-        const baseScale = (mesh.userData as any)._baseScale || mesh.scale.x;
-        (mesh.userData as any)._baseScale = baseScale;
+        const baseScale = (mesh.userData as Record<string, number>)._baseScale || mesh.scale.x;
+        (mesh.userData as Record<string, number>)._baseScale = baseScale;
         mesh.scale.setScalar(baseScale * 1.3);
         container.style.cursor = "pointer";
         hoveredMesh = mesh;
