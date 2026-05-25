@@ -13,7 +13,7 @@ import path from "path";
 import { findSimilarWords } from "../lib/similarity";
 import { findRootMatches, findAffixMatches } from "../lib/root-affix";
 import { batchAnalyzeWords } from "../lib/llm";
-import { GraphNode, GraphEdge, EDGE_COLORS } from "../lib/types";
+import { GraphNode, GraphEdge, EdgeType, EDGE_COLORS } from "../lib/types";
 
 interface WordEntry {
   word: string;
@@ -39,6 +39,40 @@ const COLORS = {
   location: "#43a047",
   scene: "#ff9800",
 };
+
+const EDGE_WEIGHTS: Record<string, number> = {
+  semantic: 3,
+  root: 2.5,
+  affix: 2,
+  scene: 1.5,
+  location: 1.5,
+  similar: 1,
+};
+
+function getNodeColor(nodeId: string, edges: GraphEdge[]): string {
+  const counts = new Map<string, number>();
+  for (const e of edges) {
+    if (e.source === nodeId || e.target === nodeId) {
+      counts.set(e.type, (counts.get(e.type) || 0) + 1);
+    }
+  }
+  let maxType: string | null = null;
+  let maxCount = 0;
+  for (const [type, count] of counts) {
+    if (count > maxCount) {
+      maxCount = count;
+      maxType = type;
+    }
+  }
+  return maxType ? EDGE_COLORS[maxType as EdgeType] : "#4f8cff";
+}
+
+function getNodeSize(nodeId: string, edges: GraphEdge[]): number {
+  const count = edges.filter(
+    (e) => e.source === nodeId || e.target === nodeId
+  ).length;
+  return Math.max(8, Math.min(20, 8 + count * 1.5));
+}
 
 async function processWordbook(
   name: string,
@@ -76,7 +110,7 @@ async function processWordbook(
       source: String(s),
       target: String(t),
       type: type as any,
-      weight: 1,
+      weight: EDGE_WEIGHTS[type] || 1,
       color,
       size: 1,
     });
@@ -146,6 +180,12 @@ async function processWordbook(
     } catch (err) {
       console.warn(`  LLM 分析失败: ${err}`);
     }
+  }
+
+  // Assign node colors and sizes based on edges
+  for (const node of nodes) {
+    node.color = getNodeColor(node.id, edges);
+    node.size = getNodeSize(node.id, edges);
   }
 
   return { name, nodes, edges };
