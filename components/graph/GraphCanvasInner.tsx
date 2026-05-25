@@ -3,9 +3,10 @@
 import { useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { EdgeType, GraphData } from "@/lib/types";
+import { EdgeType, GraphData, EDGE_COLORS } from "@/lib/types";
+import { BarnesHutTree } from "@/lib/barnes-hut";
 
-export type LayoutType = "force" | "spherical" | "random";
+export type LayoutType = "force" | "spherical";
 
 interface GraphCanvasProps {
   data: GraphData;
@@ -14,13 +15,17 @@ interface GraphCanvasProps {
   layout: LayoutType;
 }
 
-function computePositions(nodes: { id: string }[], edges: { source: string; target: string }[], layout: LayoutType) {
+function computePositions(
+  nodes: { id: string }[],
+  edges: { source: string; target: string }[],
+  layout: LayoutType
+) {
   const map = new Map<string, [number, number, number]>();
   const n = nodes.length;
   if (n === 0) return map;
 
-  if (layout === "spherical" || n > 500) {
-    const radius = Math.max(30, Math.sqrt(n) * 5);
+  if (layout === "spherical") {
+    const radius = Math.max(40, Math.sqrt(n) * 6);
     nodes.forEach((node, i) => {
       const phi = Math.acos(-1 + (2 * i) / n);
       const theta = Math.sqrt(n * Math.PI) * phi;
@@ -30,64 +35,62 @@ function computePositions(nodes: { id: string }[], edges: { source: string; targ
         radius * Math.cos(phi),
       ]);
     });
-  } else if (layout === "random") {
-    nodes.forEach((node) => {
-      map.set(node.id, [
-        (Math.random() - 0.5) * 100,
-        (Math.random() - 0.5) * 100,
-        (Math.random() - 0.5) * 100,
-      ]);
-    });
   } else {
-    // Force-directed (capped at 500 nodes for performance)
+    // Force-directed with Barnes-Hut
     nodes.forEach((node, i) => {
       const angle = (2 * Math.PI * i) / n;
-      const r = 20 + Math.random() * 30;
+      const r = 25 + Math.random() * 35;
       map.set(node.id, [
         r * Math.cos(angle),
-        (Math.random() - 0.5) * 40,
+        (Math.random() - 0.5) * 50,
         r * Math.sin(angle),
       ]);
     });
 
-    const iters = Math.min(50, Math.max(10, Math.floor(2000 / n)));
+    const iters = Math.min(60, Math.max(15, Math.floor(2500 / n)));
     for (let iter = 0; iter < iters; iter++) {
       const forces = new Map<string, [number, number, number]>();
       nodes.forEach((n) => forces.set(n.id, [0, 0, 0]));
 
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = map.get(nodes[i].id)!;
-          const b = map.get(nodes[j].id)!;
-          const dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
-          const dist = Math.max(Math.sqrt(dx * dx + dy * dy + dz * dz), 1);
-          const f = 500 / (dist * dist);
-          const fx = (dx / dist) * f, fy = (dy / dist) * f, fz = (dz / dist) * f;
-          const fa = forces.get(nodes[i].id)!;
-          const fb = forces.get(nodes[j].id)!;
-          fa[0] += fx; fa[1] += fy; fa[2] += fz;
-          fb[0] -= fx; fb[1] -= fy; fb[2] -= fz;
-        }
-      }
+      // Barnes-Hut repulsion (O(n log n))
+      const positions = nodes.map((n) => map.get(n.id)!);
+      const tree = new BarnesHutTree(positions);
+      nodes.forEach((node, i) => {
+        const force = tree.getForce(positions[i]);
+        const f = forces.get(node.id)!;
+        f[0] += force[0];
+        f[1] += force[1];
+        f[2] += force[2];
+      });
 
+      // Edge attraction
       for (const edge of edges) {
         const a = map.get(edge.source);
         const b = map.get(edge.target);
         if (!a || !b) continue;
-        const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
-        const fx = dx * 0.01, fy = dy * 0.01, fz = dz * 0.01;
+        const dx = b[0] - a[0],
+          dy = b[1] - a[1],
+          dz = b[2] - a[2];
+        const fx = dx * 0.012,
+          fy = dy * 0.012,
+          fz = dz * 0.012;
         const fa = forces.get(edge.source)!;
         const fb = forces.get(edge.target)!;
-        fa[0] += fx; fa[1] += fy; fa[2] += fz;
-        fb[0] -= fx; fb[1] -= fy; fb[2] -= fz;
+        fa[0] += fx;
+        fa[1] += fy;
+        fa[2] += fz;
+        fb[0] -= fx;
+        fb[1] -= fy;
+        fb[2] -= fz;
       }
 
+      // Apply forces
       nodes.forEach((n) => {
         const pos = map.get(n.id)!;
         const f = forces.get(n.id)!;
-        pos[0] = Math.max(-200, Math.min(200, pos[0] + f[0] * 0.5));
-        pos[1] = Math.max(-200, Math.min(200, pos[1] + f[1] * 0.5));
-        pos[2] = Math.max(-200, Math.min(200, pos[2] + f[2] * 0.5));
+        pos[0] = Math.max(-250, Math.min(250, pos[0] + f[0] * 0.5));
+        pos[1] = Math.max(-250, Math.min(250, pos[1] + f[1] * 0.5));
+        pos[2] = Math.max(-250, Math.min(250, pos[2] + f[2] * 0.5));
       });
     }
   }
@@ -95,7 +98,12 @@ function computePositions(nodes: { id: string }[], edges: { source: string; targ
   return map;
 }
 
-export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layout }: GraphCanvasProps) {
+export default function GraphCanvasInner({
+  data,
+  onNodeClick,
+  activeTypes,
+  layout,
+}: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filteredEdges = useMemo(
@@ -115,8 +123,13 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f0f0f);
 
-    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 2000);
-    camera.position.set(0, 0, 80);
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      2000
+    );
+    camera.position.set(0, 20, 100);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -133,44 +146,71 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
 
     // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const pointLight = new THREE.PointLight(0xffffff, 1);
+    const pointLight = new THREE.PointLight(0xffffff, 0.8);
     pointLight.position.set(100, 100, 100);
     scene.add(pointLight);
 
     // Node meshes
     const nodeGroup = new THREE.Group();
-    const sphereGeo = new THREE.SphereGeometry(0.8, 16, 16);
+    const sphereGeo = new THREE.SphereGeometry(1, 16, 16);
 
     for (const node of data.nodes) {
       const pos = positions.get(node.id);
       if (!pos) continue;
 
-      const mat = new THREE.MeshStandardMaterial({ color: node.color });
+      const mat = new THREE.MeshStandardMaterial({
+        color: node.color,
+        emissive: node.color,
+        emissiveIntensity: 0.15,
+        metalness: 0.2,
+        roughness: 0.7,
+      });
       const mesh = new THREE.Mesh(sphereGeo, mat);
+      const scale = (node.size || 10) / 10;
+      mesh.scale.setScalar(scale);
       mesh.position.set(pos[0], pos[1], pos[2]);
       mesh.userData = { id: node.id, label: node.label };
       nodeGroup.add(mesh);
     }
     scene.add(nodeGroup);
 
-    // Edge lines
-    if (filteredEdges.length > 0) {
-      const edgePoints: number[] = [];
-      for (const edge of filteredEdges) {
-        const a = positions.get(edge.source);
-        const b = positions.get(edge.target);
-        if (a && b) {
-          edgePoints.push(a[0], a[1], a[2], b[0], b[1], b[2]);
-        }
-      }
-      if (edgePoints.length > 0) {
-        const edgeGeo = new THREE.BufferGeometry();
-        edgeGeo.setAttribute("position", new THREE.Float32BufferAttribute(edgePoints, 3));
-        scene.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x333344, transparent: true, opacity: 0.6 })));
-      }
+    // Edge lines grouped by type
+    const edgesByType = new Map<EdgeType, { points: number[] }>();
+    for (const edge of filteredEdges) {
+      const a = positions.get(edge.source);
+      const b = positions.get(edge.target);
+      if (!a || !b) continue;
+      if (!edgesByType.has(edge.type))
+        edgesByType.set(edge.type, { points: [] });
+      edgesByType.get(edge.type)!.points.push(
+        a[0], a[1], a[2],
+        b[0], b[1], b[2]
+      );
     }
 
-    // Text labels using sprites (only show closest N to camera)
+    for (const [type, { points }] of edgesByType) {
+      if (points.length === 0) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+
+      // Main edge
+      const mat = new THREE.LineBasicMaterial({
+        color: EDGE_COLORS[type],
+        transparent: true,
+        opacity: 0.4,
+      });
+      scene.add(new THREE.LineSegments(geo, mat));
+
+      // Glow layer
+      const glowMat = new THREE.LineBasicMaterial({
+        color: EDGE_COLORS[type],
+        transparent: true,
+        opacity: 0.08,
+      });
+      scene.add(new THREE.LineSegments(geo.clone(), glowMat));
+    }
+
+    // Text labels using sprites
     const MAX_LABELS = 80;
     const labelGroup = new THREE.Group();
     const labelMap = new Map<string, THREE.Sprite>();
@@ -217,9 +257,7 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
         .filter(Boolean)
         .sort((a, b) => a!.dist - b!.dist);
 
-      // Hide all labels first
       for (const [, sprite] of labelMap) sprite.visible = false;
-      // Show only closest N
       for (let i = 0; i < Math.min(MAX_LABELS, sorted.length); i++) {
         const sprite = labelMap.get(sorted[i]!.id);
         if (sprite) sprite.visible = true;
@@ -268,20 +306,19 @@ export default function GraphCanvasInner({ data, onNodeClick, activeTypes, layou
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(nodeGroup.children);
 
-      // Reset previous hover
       if (hoveredMesh) {
-        (hoveredMesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
-        (hoveredMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0;
-        hoveredMesh.scale.set(1, 1, 1);
+        (hoveredMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.15;
+        hoveredMesh.scale.setScalar((hoveredMesh.userData as any)._baseScale || 1);
         hoveredMesh = null;
       }
 
       if (intersects.length > 0) {
         const mesh = intersects[0].object as THREE.Mesh;
         const mat = mesh.material as THREE.MeshStandardMaterial;
-        mat.emissive.setHex(mat.color.getHex());
         mat.emissiveIntensity = 0.5;
-        mesh.scale.set(1.3, 1.3, 1.3);
+        const baseScale = (mesh.userData as any)._baseScale || mesh.scale.x;
+        (mesh.userData as any)._baseScale = baseScale;
+        mesh.scale.setScalar(baseScale * 1.3);
         container.style.cursor = "pointer";
         hoveredMesh = mesh;
       } else {
