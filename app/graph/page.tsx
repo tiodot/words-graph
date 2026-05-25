@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { GraphCanvas, LayoutType } from "@/components/graph/GraphCanvas";
 import { GraphFilters } from "@/components/graph/GraphFilters";
@@ -42,12 +42,16 @@ function GraphContent() {
     }
   }, [wordbook]);
 
-  const data: GraphData | null = fullData
-    ? {
-        nodes: fullData.nodes,
-        edges: fullData.edges.filter((e) => activeTypes.includes(e.type)),
-      }
-    : null;
+  const data: GraphData | null = useMemo(
+    () =>
+      fullData
+        ? {
+            nodes: fullData.nodes,
+            edges: fullData.edges.filter((e) => activeTypes.includes(e.type)),
+          }
+        : null,
+    [fullData, activeTypes]
+  );
 
   const handleToggleType = useCallback((type: EdgeType) => {
     setActiveTypes((prev) =>
