@@ -28,58 +28,59 @@ export function WordDetail({ nodeId, data, onClose, onWordClick }: WordDetailPro
   });
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex justify-between items-start mb-4">
+    <div className="w-72 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start justify-between p-4 pb-2">
         <div>
-          <h2 className="text-xl font-bold">{node.label}</h2>
+          <h2 className="text-lg font-semibold text-white">{node.label}</h2>
           {node.phonetic && (
-            <p className="text-gray-400 text-sm">{node.phonetic}</p>
+            <p className="text-gray-500 text-xs mt-0.5">{node.phonetic}</p>
           )}
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-white"
+          className="w-6 h-6 rounded-full bg-[#2a2a2a] flex items-center justify-center text-gray-500 hover:text-white hover:bg-[#3a3a3a] transition-colors text-xs"
         >
-          ✕
+          ×
         </button>
       </div>
 
+      {/* Definition */}
       {node.definition && (
-        <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-1">释义</p>
-          <p className="text-sm">{node.definition}</p>
+        <div className="px-4 pb-3">
+          <p className="text-sm text-gray-300 leading-relaxed">{node.definition}</p>
         </div>
       )}
 
-      <div className="flex-1 overflow-auto">
-        <p className="text-xs text-gray-500 mb-2">关联单词</p>
-        <div className="space-y-2">
-          {relatedWords.map((word, i) => (
-            <button
-              key={i}
-              onClick={() => onWordClick(word.id)}
-              className="flex justify-between items-center w-full hover:bg-[#2a2a2a] rounded px-1 py-0.5 transition-colors text-left"
-            >
-              <span style={{ color: EDGE_COLORS[word.type] }}>
-                ● {word.word}
-              </span>
-              <span className="text-xs text-gray-500">
-                {EDGE_TYPE_LABELS[word.type]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Divider */}
+      <div className="h-px bg-[#2a2a2a] mx-4" />
 
-      <div className="mt-4 pt-4 border-t border-[#2a2a2a]">
-        <p className="text-xs text-gray-500 mb-2">学习状态</p>
-        <div className="flex gap-2">
-          <button className="px-3 py-1 rounded text-xs bg-[#43a04722] text-[#43a047] border border-[#43a04744]">
-            已掌握
-          </button>
-          <button className="px-3 py-1 rounded text-xs bg-[#2a2a2a] text-gray-400 border border-[#3a3a3a]">
-            未掌握
-          </button>
+      {/* Related words */}
+      <div className="p-4 pt-3">
+        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-2">
+          关联单词
+        </p>
+        <div className="space-y-1 max-h-60 overflow-auto">
+          {relatedWords.length === 0 ? (
+            <p className="text-xs text-gray-600">暂无关联单词</p>
+          ) : (
+            relatedWords.map((word, i) => (
+              <button
+                key={i}
+                onClick={() => onWordClick(word.id)}
+                className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-[#2a2a2a] transition-colors text-left"
+              >
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: EDGE_COLORS[word.type] }}
+                />
+                <span className="text-sm text-gray-300 flex-1">{word.word}</span>
+                <span className="text-[10px]" style={{ color: EDGE_COLORS[word.type] }}>
+                  {EDGE_TYPE_LABELS[word.type]}
+                </span>
+              </button>
+            ))
+          )}
         </div>
       </div>
     </div>

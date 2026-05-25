@@ -7,29 +7,28 @@ interface GraphFiltersProps {
   onToggle: (type: EdgeType) => void;
 }
 
-const allTypes: EdgeType[] = ["semantic", "location", "scene", "similar", "root", "affix"];
+const allTypes: EdgeType[] = [
+  "semantic", "location", "scene", "similar", "root", "affix",
+];
 
 export function GraphFilters({ activeTypes, onToggle }: GraphFiltersProps) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {allTypes.map((type) => (
-        <button
-          key={type}
-          onClick={() => onToggle(type)}
-          className="px-3 py-1 rounded-full text-xs border transition-colors"
-          style={{
-            backgroundColor: activeTypes.includes(type)
-              ? `${EDGE_COLORS[type]}22`
-              : "transparent",
-            borderColor: activeTypes.includes(type)
-              ? `${EDGE_COLORS[type]}44`
-              : "#3a3a3a",
-            color: activeTypes.includes(type) ? EDGE_COLORS[type] : "#888",
-          }}
-        >
-          {EDGE_TYPE_LABELS[type]}
-        </button>
-      ))}
+    <div className="flex items-center gap-2">
+      {allTypes.map((type) => {
+        const isActive = activeTypes.includes(type);
+        return (
+          <button
+            key={type}
+            onClick={() => onToggle(type)}
+            title={EDGE_TYPE_LABELS[type]}
+            className="w-4 h-4 rounded-full transition-all hover:scale-125"
+            style={{
+              backgroundColor: EDGE_COLORS[type],
+              opacity: isActive ? 1 : 0.3,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
