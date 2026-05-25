@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { EdgeType, GraphData } from "@/lib/types";
 
-export type LayoutType = "force" | "spherical" | "random";
+export type LayoutType = "force" | "spherical";
 
 interface GraphCanvasProps {
   data: GraphData;
